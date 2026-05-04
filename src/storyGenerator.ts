@@ -1,7 +1,15 @@
+import { APP_BRAND } from './brand'
 import type { Story, StoryPage, StoryCover, StoryTheme } from './types'
 
 /** More pages = longer book. Illustrations cycle through `beat-1` … `beat-8` per theme. */
-export const STORY_PAGE_COUNT = 32
+export const STORY_PAGE_COUNT = 33
+
+/** Public-folder URLs (work with `base: './'` and GitHub project pages). */
+function publicAsset(path: string): string {
+  const rel = path.startsWith('/') ? path.slice(1) : path
+  const base = import.meta.env.BASE_URL
+  return base.endsWith('/') ? `${base}${rel}` : `${base}/${rel}`
+}
 
 const themes: Record<
   StoryTheme,
@@ -100,9 +108,9 @@ function buildCover(trimmed: string, theme: StoryTheme): StoryCover {
   return {
     title: `${trimmed}'s ${label} Story`,
     subtitle: coverSubtitles[theme],
-    image: `/illustrations/${theme}/cover.svg`,
+    image: publicAsset(`illustrations/${theme}/cover.svg`),
     imageAlt: `Book cover: ${trimmed}'s ${label} story`,
-    credit: 'Little Lark',
+    credit: APP_BRAND,
   }
 }
 
@@ -157,7 +165,7 @@ function pagesFor(name: string, theme: StoryTheme): StoryPage[] {
   return texts.map((text, i) => {
     const beat = (i % nBeat) + 1
     return {
-      image: `/illustrations/${theme}/beat-${beat}.svg`,
+      image: publicAsset(`illustrations/${theme}/beat-${beat}.svg`),
       imageAlt: alts[i % nBeat],
       text,
     }
