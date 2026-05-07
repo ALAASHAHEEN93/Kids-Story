@@ -16,25 +16,51 @@ const THEME_OPTIONS: { id: StoryTheme; label: string }[] = [
 const LANDING_HERO_SRC = `${import.meta.env.BASE_URL}hero-bedtime-clouds.png`
 
 function createLullabyObjectUrl(): string {
-  const sampleRate = 22050
-  const durationSec = 3
+  const sampleRate = 44100
+  const durationSec = 8
   const totalSamples = sampleRate * durationSec
-  const notes = [261.63, 293.66, 329.63, 392.0, 329.63, 293.66, 246.94, 293.66]
+  const notes = [261.63, 293.66, 329.63, 349.23, 392.0, 349.23, 329.63, 293.66]
   const samplesPerNote = Math.floor(totalSamples / notes.length)
   const pcm = new Int16Array(totalSamples)
 
   let idx = 0
+  let phaseFundamental = 0
+  let phaseOctave = 0
   for (let n = 0; n < notes.length; n++) {
     const f = notes[n]
+    const fundamentalStep = (2 * Math.PI * f) / sampleRate
+    const octaveStep = (2 * Math.PI * (f * 2)) / sampleRate
     for (let i = 0; i < samplesPerNote && idx < totalSamples; i++, idx++) {
-      const t = i / sampleRate
-      const phase = 2 * Math.PI * f * t
-      const envIn = Math.min(1, i / (sampleRate * 0.05))
-      const envOut = Math.min(1, (samplesPerNote - i) / (sampleRate * 0.08))
+      // Gentle envelope avoids clicks at note boundaries.
+      const envIn = Math.min(1, i / (sampleRate * 0.09))
+      const envOut = Math.min(1, (samplesPerNote - i) / (sampleRate * 0.16))
       const env = Math.max(0, Math.min(envIn, envOut))
-      const sample = (0.42 * Math.sin(phase) + 0.18 * Math.sin(phase * 2)) * env * 0.22
+
+      const fundamental = Math.sin(phaseFundamental)
+      const octave = Math.sin(phaseOctave)
+      const sample = (0.72 * fundamental + 0.03 * octave) * env * 0.13
       pcm[idx] = Math.max(-1, Math.min(1, sample)) * 0x7fff
+
+      phaseFundamental += fundamentalStep
+      phaseOctave += octaveStep
+      if (phaseFundamental > Math.PI * 2) phaseFundamental -= Math.PI * 2
+      if (phaseOctave > Math.PI * 2) phaseOctave -= Math.PI * 2
     }
+  }
+
+  // Smooth the waveform lightly to soften metallic artifacts.
+  for (let i = 1; i < pcm.length; i++) {
+    pcm[i] = ((pcm[i - 1] * 2 + pcm[i]) / 3) | 0
+  }
+
+  // Fade edges to make loop transitions less clicky.
+  const fadeSamples = Math.floor(sampleRate * 0.2)
+  for (let i = 0; i < fadeSamples; i++) {
+    const fadeIn = i / fadeSamples
+    const fadeOut = (fadeSamples - i) / fadeSamples
+    pcm[i] = (pcm[i] * fadeIn) | 0
+    const j = pcm.length - 1 - i
+    pcm[j] = (pcm[j] * fadeOut) | 0
   }
 
   const byteRate = sampleRate * 2
@@ -117,10 +143,13 @@ type Phase = 'landing' | 'cover' | 'reading'
 type SavedStory = {
   id: string
   savedAt: number
+  label?: string
   story: Story
 }
 
 const STORY_LIBRARY_KEY = 'kids-story.library.v1'
+const STORY_SESSION_KEY = 'kids-story.session.v1'
+const NORMAL_MUSIC_VOLUME = 0.22
 
 export default function App() {
   const [story, setStory] = useState<Story | null>(null)
@@ -131,12 +160,18 @@ export default function App() {
   const [theme, setTheme] = useState<StoryTheme>('magic')
   const [musicOn, setMusicOn] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
-  const [speechRate, setSpeechRate] = useState(0.92)
+  const [speechRate, setSpeechRate] = useState(0.82)
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [voiceURI, setVoiceURI] = useState('')
   const [savedStories, setSavedStories] = useState<SavedStory[]>([])
+  const [selectedSavedId, setSelectedSavedId] = useState('')
+  const [autoReadNextPage, setAutoReadNextPage] = useState(false)
+  const [showMoreControls, setShowMoreControls] = useState(false)
+  const [activeStoryId, setActiveStoryId] = useState<string | null>(null)
+  const [storyRestored, setStoryRestored] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const musicUrlRef = useRef<string | null>(null)
+  const shouldResumeMusicRef = useRef(false)
 
   const pageCount = story?.pages.length ?? 0
   const spreadCount = Math.ceil(pageCount / 2)
@@ -150,6 +185,7 @@ export default function App() {
     setStory(next)
     setReadIndex(0)
     setPhase('cover')
+    setActiveStoryId(null)
     closeGenerator()
   }
 
@@ -159,12 +195,19 @@ export default function App() {
 
   const saveCurrentStory = () => {
     if (!story) return
+    const title = story.cover.title.trim()
     const item: SavedStory = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       savedAt: Date.now(),
+      label: title,
       story,
     }
-    setSavedStories((prev) => [item, ...prev].slice(0, 50))
+    setSavedStories((prev) => {
+      const next = [item, ...prev].slice(0, 50)
+      return next
+    })
+    setSelectedSavedId(item.id)
+    setActiveStoryId(item.id)
   }
 
   const loadSavedStory = (id: string) => {
@@ -173,7 +216,31 @@ export default function App() {
     setStory(found.story)
     setReadIndex(0)
     setPhase('cover')
+    setSelectedSavedId(id)
+    setActiveStoryId(id)
     stopSpeaking()
+  }
+
+  const deleteSavedStory = (id: string) => {
+    setSavedStories((prev) => prev.filter((s) => s.id !== id))
+    if (selectedSavedId === id) setSelectedSavedId('')
+    if (activeStoryId === id) {
+      setActiveStoryId(null)
+      setStory(null)
+      setReadIndex(0)
+      setPhase('landing')
+      stopSpeaking()
+    }
+  }
+
+  const renameSavedStory = (id: string) => {
+    const entry = savedStories.find((s) => s.id === id)
+    if (!entry) return
+    const nextLabel = window.prompt('Rename saved story', entry.label ?? entry.story.cover.title)
+    if (!nextLabel) return
+    const trimmed = nextLabel.trim()
+    if (!trimmed) return
+    setSavedStories((prev) => prev.map((s) => (s.id === id ? { ...s, label: trimmed } : s)))
   }
 
   const exportStoryToPrint = () => {
@@ -221,6 +288,10 @@ export default function App() {
   const stopSpeaking = () => {
     if (!speechSupported) return
     window.speechSynthesis.cancel()
+    if (shouldResumeMusicRef.current) {
+      shouldResumeMusicRef.current = false
+      void startMusic()
+    }
     setIsSpeaking(false)
   }
 
@@ -231,21 +302,97 @@ export default function App() {
         ? story.pages.map((p, i) => `Page ${i + 1}. ${p.text}`).join(' ')
         : ''
 
-  const speakCurrentText = () => {
-    if (!speechSupported || !textToRead.trim()) return
+  const speakText = (content: string, onEnd?: () => void) => {
+    if (!speechSupported || !content.trim()) return
     stopSpeaking()
-    const utterance = new SpeechSynthesisUtterance(textToRead)
-    utterance.rate = speechRate
-    utterance.pitch = 1.02
-    utterance.lang = 'en-US'
-    if (voiceURI) {
-      const chosen = voices.find((v) => v.voiceURI === voiceURI)
-      if (chosen) utterance.voice = chosen
+    const selectedVoice = voiceURI ? voices.find((v) => v.voiceURI === voiceURI) : undefined
+    const effectiveRate = Math.min(0.88, Math.max(0.72, speechRate))
+    if (audioRef.current && !audioRef.current.paused) {
+      shouldResumeMusicRef.current = true
+      audioRef.current.pause()
+    } else {
+      shouldResumeMusicRef.current = false
     }
-    utterance.onstart = () => setIsSpeaking(true)
-    utterance.onend = () => setIsSpeaking(false)
-    utterance.onerror = () => setIsSpeaking(false)
-    window.speechSynthesis.speak(utterance)
+
+    const chunkBySentence = (value: string, maxLen = 170): string[] => {
+      const rough = value
+        .replace(/\s+/g, ' ')
+        .trim()
+        .split(/(?<=[.!?;:])\s+/)
+        .filter(Boolean)
+      const out: string[] = []
+      let buffer = ''
+      for (const sentence of rough) {
+        const next = buffer ? `${buffer} ${sentence}` : sentence
+        if (next.length <= maxLen) {
+          buffer = next
+          continue
+        }
+        if (buffer) out.push(buffer)
+        if (sentence.length <= maxLen) {
+          buffer = sentence
+          continue
+        }
+        for (let i = 0; i < sentence.length; i += maxLen) {
+          out.push(sentence.slice(i, i + maxLen))
+        }
+        buffer = ''
+      }
+      if (buffer) out.push(buffer)
+      return out.length > 0 ? out : [value]
+    }
+
+    const chunks = chunkBySentence(content)
+    const queue = chunks.map((chunk) => {
+      const utterance = new SpeechSynthesisUtterance(chunk)
+      utterance.rate = effectiveRate
+      utterance.pitch = 1
+      utterance.volume = 1
+      utterance.lang = selectedVoice?.lang ?? 'en-US'
+      if (selectedVoice) utterance.voice = selectedVoice
+      return utterance
+    })
+    if (queue.length === 0) return
+
+    queue[0].onstart = () => setIsSpeaking(true)
+    queue[queue.length - 1].onend = () => {
+      setIsSpeaking(false)
+      if (shouldResumeMusicRef.current) {
+        shouldResumeMusicRef.current = false
+        void startMusic()
+      }
+      onEnd?.()
+    }
+    for (const item of queue) {
+      item.onerror = () => {
+        setIsSpeaking(false)
+        if (shouldResumeMusicRef.current) {
+          shouldResumeMusicRef.current = false
+          void startMusic()
+        }
+      }
+      window.speechSynthesis.speak(item)
+    }
+  }
+
+  const speakCurrentText = () => {
+    speakText(textToRead)
+  }
+
+  const speakCurrentPage = () => {
+    if (!story || phase !== 'reading') return
+    const readFrom = (pageIndex: number) => {
+      const page = story.pages[pageIndex]
+      if (!page) return
+      speakText(`Page ${pageIndex + 1}. ${page.text}`, () => {
+        if (!autoReadNextPage) return
+        const next = pageIndex + 1
+        if (next >= story.pages.length) return
+        setReadIndex(next)
+        window.setTimeout(() => readFrom(next), 220)
+      })
+    }
+    readFrom(readIndex)
   }
 
   const stopMusic = () => {
@@ -279,7 +426,7 @@ export default function App() {
       musicUrlRef.current = createLullabyObjectUrl()
       const el = new Audio(musicUrlRef.current)
       el.loop = true
-      el.volume = 0.45
+      el.volume = NORMAL_MUSIC_VOLUME
       el.preload = 'auto'
       audioRef.current = el
     }
@@ -306,8 +453,41 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STORY_SESSION_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as {
+        story: Story | null
+        readIndex: number
+        phase: Phase
+        activeStoryId: string | null
+      }
+      if (!parsed || !parsed.story) return
+      setStory(parsed.story)
+      setReadIndex(Math.max(0, parsed.readIndex ?? 0))
+      setPhase(parsed.phase ?? 'cover')
+      setActiveStoryId(parsed.activeStoryId ?? null)
+    } catch {
+      // Ignore malformed session payloads.
+    } finally {
+      setStoryRestored(true)
+    }
+  }, [])
+
+  useEffect(() => {
     window.localStorage.setItem(STORY_LIBRARY_KEY, JSON.stringify(savedStories))
   }, [savedStories])
+
+  useEffect(() => {
+    if (!storyRestored) return
+    const payload = {
+      story,
+      readIndex,
+      phase,
+      activeStoryId,
+    }
+    window.localStorage.setItem(STORY_SESSION_KEY, JSON.stringify(payload))
+  }, [story, readIndex, phase, activeStoryId, storyRestored])
 
   useEffect(() => {
     if (!speechSupported) return
@@ -315,7 +495,11 @@ export default function App() {
       const vs = window.speechSynthesis.getVoices()
       setVoices(vs)
       if (!voiceURI && vs.length > 0) {
-        const preferred = vs.find((v) => /en-US/i.test(v.lang)) ?? vs[0]
+        const preferred =
+          vs.find((v) => /en-US/i.test(v.lang) && /google|samantha|daniel|microsoft|natural/i.test(v.name)) ??
+          vs.find((v) => /en-US/i.test(v.lang)) ??
+          vs.find((v) => /^en(-|$)/i.test(v.lang)) ??
+          vs[0]
         setVoiceURI(preferred.voiceURI)
       }
     }
@@ -335,82 +519,127 @@ export default function App() {
     <div className={appClass}>
       {phase !== 'landing' ? (
         <div className="storyToolbar">
-          <button type="button" className="generateBtn" onClick={openGenerator}>
-            <SparklesIcon />
-            New story
-          </button>
-          {story ? (
-            <>
-              <button type="button" className="mediaBtn" onClick={saveCurrentStory}>
-                Save Story
-              </button>
-              <button type="button" className="mediaBtn" onClick={exportStoryToPrint}>
-                Export / Print
-              </button>
-            </>
-          ) : null}
-          {savedStories.length > 0 ? (
-            <label className="mediaSelectWrap">
-              <span>My Stories</span>
-              <select
-                className="mediaSelect"
-                defaultValue=""
-                onChange={(e) => {
-                  if (!e.target.value) return
-                  loadSavedStory(e.target.value)
-                  e.target.value = ''
-                }}
-              >
-                <option value="">Open saved...</option>
-                {savedStories.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.story.cover.title} - {new Date(s.savedAt).toLocaleDateString()}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <button type="button" className="mediaBtn" onClick={toggleMusic}>
-            {musicOn ? 'Music Off' : 'Music On'}
-          </button>
-          {speechSupported ? (
-            <label className="mediaSelectWrap">
-              <span>Voice</span>
-              <select
-                className="mediaSelect"
-                value={voiceURI}
-                onChange={(e) => setVoiceURI(e.target.value)}
-              >
-                {voices.map((v) => (
-                  <option key={v.voiceURI} value={v.voiceURI}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          {speechSupported ? (
-            <label className="mediaSelectWrap mediaSelectWrap--rate">
-              <span>Speed {speechRate.toFixed(2)}x</span>
-              <input
-                className="mediaRange"
-                type="range"
-                min="0.7"
-                max="1.2"
-                step="0.01"
-                value={speechRate}
-                onChange={(e) => setSpeechRate(Number(e.target.value))}
-              />
-            </label>
-          ) : null}
-          {speechSupported && textToRead ? (
-            <button
-              type="button"
-              className="mediaBtn mediaBtn--read"
-              onClick={() => (isSpeaking ? stopSpeaking() : speakCurrentText())}
-            >
-              {isSpeaking ? 'Stop Reading' : phase === 'reading' ? 'Read Full Story' : 'Read Aloud'}
+          <div className="toolbarRow toolbarRow--primary">
+            <button type="button" className="generateBtn" onClick={openGenerator}>
+              <SparklesIcon />
+              New story
             </button>
+            <button type="button" className="mediaBtn" onClick={toggleMusic}>
+              {musicOn ? 'Music Off' : 'Music On'}
+            </button>
+            {speechSupported && textToRead ? (
+              <button
+                type="button"
+                className="mediaBtn mediaBtn--read"
+                onClick={() =>
+                  isSpeaking ? stopSpeaking() : phase === 'reading' ? speakCurrentPage() : speakCurrentText()
+                }
+              >
+                {isSpeaking ? 'Stop' : phase === 'reading' ? 'Read' : 'Read'}
+              </button>
+            ) : null}
+            {savedStories.length > 0 ? (
+              <label className="mediaSelectWrap">
+                <span>Stories</span>
+                <select
+                  className="mediaSelect"
+                  value={selectedSavedId}
+                  onChange={(e) => setSelectedSavedId(e.target.value)}
+                >
+                  <option value="">Select...</option>
+                  {savedStories.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label ?? s.story.cover.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {selectedSavedId ? (
+              <button type="button" className="mediaBtn" onClick={() => loadSavedStory(selectedSavedId)}>
+                Open
+              </button>
+            ) : null}
+            <button type="button" className="mediaBtn" onClick={() => setShowMoreControls((v) => !v)}>
+              {showMoreControls ? 'Less' : 'More'}
+            </button>
+          </div>
+          {showMoreControls ? (
+            <div className="toolbarRow toolbarRow--secondary">
+              {story ? (
+                <>
+                  <button type="button" className="mediaBtn" onClick={saveCurrentStory}>
+                    Save
+                  </button>
+                  <button type="button" className="mediaBtn" onClick={exportStoryToPrint}>
+                    Export
+                  </button>
+                </>
+              ) : null}
+              {selectedSavedId ? (
+                <>
+                  <button type="button" className="mediaBtn" onClick={() => renameSavedStory(selectedSavedId)}>
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    className="mediaBtn mediaBtn--danger"
+                    onClick={() => deleteSavedStory(selectedSavedId)}
+                  >
+                    Delete
+                  </button>
+                </>
+              ) : null}
+              {speechSupported ? (
+                <label className="mediaSelectWrap">
+                  <span>Voice</span>
+                  <select
+                    className="mediaSelect"
+                    value={voiceURI}
+                    onChange={(e) => setVoiceURI(e.target.value)}
+                  >
+                    {voices.map((v) => (
+                      <option key={v.voiceURI} value={v.voiceURI}>
+                        {v.name} ({v.lang})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              {speechSupported ? (
+                <label className="mediaSelectWrap mediaSelectWrap--rate">
+                  <span>Speed {speechRate.toFixed(2)}x</span>
+                  <input
+                    className="mediaRange"
+                    type="range"
+                    min="0.72"
+                    max="1.0"
+                    step="0.01"
+                    value={speechRate}
+                    onChange={(e) => setSpeechRate(Number(e.target.value))}
+                  />
+                </label>
+              ) : null}
+              {phase === 'reading' ? (
+                <label className="mediaCheck">
+                  <input
+                    type="checkbox"
+                    checked={autoReadNextPage}
+                    onChange={(e) => setAutoReadNextPage(e.target.checked)}
+                  />
+                  <span>Auto next</span>
+                </label>
+              ) : null}
+              {speechSupported && phase === 'reading' && textToRead ? (
+                <button
+                  type="button"
+                  className="mediaBtn mediaBtn--read"
+                  onClick={() => (isSpeaking ? stopSpeaking() : speakCurrentText())}
+                >
+                  {isSpeaking ? 'Stop' : 'Read Full'}
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}

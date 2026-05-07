@@ -242,11 +242,30 @@
 .storyToolbar {
   width: 100%;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.6rem;
+  flex-direction: column;
+  gap: 0.55rem;
   flex-shrink: 0;
+  padding: 0.6rem 0.7rem;
+  border-radius: 18px;
+  border: 1px solid rgba(253, 254, 254, 0.14);
+  background:
+    linear-gradient(160deg, rgba(17, 34, 52, 0.56) 0%, rgba(15, 30, 46, 0.62) 100%),
+    radial-gradient(circle at 80% 0%, rgba(246, 214, 126, 0.11) 0%, transparent 34%);
+  box-shadow:
+    0 10px 24px rgba(9, 21, 35, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.toolbarRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.toolbarRow--secondary {
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(253, 254, 254, 0.14);
 }
 
 .appMain {
@@ -331,10 +350,22 @@
   outline-offset: 3px;
 }
 
+.mediaBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .mediaBtn--read {
   background: linear-gradient(96deg, #eebf58 0%, #f6d890 44%, #f2cf79 100%);
   border-color: rgba(246, 214, 126, 0.72);
   color: #1a3047;
+}
+
+.mediaBtn--danger {
+  border-color: rgba(250, 160, 160, 0.45);
+  background: linear-gradient(96deg, rgba(82, 27, 41, 0.95) 0%, rgba(116, 38, 53, 0.95) 100%);
+  color: #ffe5e8;
 }
 
 .mediaSelectWrap {
@@ -348,7 +379,7 @@
 
 .mediaSelect {
   min-height: 40px;
-  max-width: 180px;
+  max-width: 205px;
   padding: 0.35rem 0.6rem;
   border-radius: 10px;
   border: 1px solid rgba(253, 254, 254, 0.34);
@@ -362,7 +393,25 @@
 }
 
 .mediaRange {
-  width: 108px;
+  width: 110px;
+  accent-color: #f6d67e;
+}
+
+.mediaCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 40px;
+  padding: 0.35rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid rgba(253, 254, 254, 0.24);
+  color: rgba(239, 246, 255, 0.94);
+  background: rgba(18, 36, 55, 0.78);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.mediaCheck input {
   accent-color: #f6d67e;
 }
 
@@ -1244,6 +1293,11 @@
 }
 
 @media (max-width: 700px) {
+  .toolbarRow {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .bookStage {
     transform: none;
   }
