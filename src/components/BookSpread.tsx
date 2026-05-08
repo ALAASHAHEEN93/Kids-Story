@@ -382,6 +382,9 @@ function Page({
 
   return (
     <div className={cls}>
+      <span className="book__mascot" aria-hidden>
+        🐻
+      </span>
       <span className="book__pageNum">Page {pageNum}</span>
       <div className="book__illustrationWrap">
         <img

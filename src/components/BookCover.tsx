@@ -10,6 +10,9 @@ type Props = {
 
 export function BookCover({ cover, onOpen }: Props) {
   const [opening, setOpening] = useState(false)
+  const heroName = cover.title.split("'s")[0]?.trim() || cover.title
+  const storyTitle =
+    cover.title.includes("'s") ? cover.title.split("'s")[1]?.trim() || 'Bedtime Story' : cover.title
 
   const startOpen = () => {
     if (opening) return
@@ -41,7 +44,21 @@ export function BookCover({ cover, onOpen }: Props) {
         >
           <div className="bookCover__spine" aria-hidden />
           <div className="bookCover__face">
-            <h1 className="bookCover__title">{cover.title}</h1>
+            <div className="bookCover__skyDots" aria-hidden>
+              <span>✦</span>
+              <span>✦</span>
+              <span>✦</span>
+              <span>✦</span>
+            </div>
+            <p className="bookCover__series">Kids&apos; Bedtime Stories</p>
+            <div className="bookCover__heroTitle">
+              <span className="bookCover__moon" aria-hidden>
+                🌙
+              </span>
+              <h1 className="bookCover__name">{heroName}</h1>
+            </div>
+            <p className="bookCover__and">AND THE</p>
+            <h2 className="bookCover__title">{storyTitle}</h2>
             <div className="bookCover__artWrap">
               <img
                 className="bookCover__art"
@@ -52,7 +69,7 @@ export function BookCover({ cover, onOpen }: Props) {
               />
             </div>
             <p className="bookCover__subtitle">{cover.subtitle}</p>
-            <p className="bookCover__credit">{cover.credit}</p>
+            <p className="bookCover__credit">by {cover.credit}</p>
             <button
               type="button"
               className="bookCover__openBtn"

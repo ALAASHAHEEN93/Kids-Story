@@ -157,10 +157,11 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>('landing')
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [name, setName] = useState('Finn')
+  const [storySummary, setStorySummary] = useState('')
   const [theme, setTheme] = useState<StoryTheme>('magic')
   const [musicOn, setMusicOn] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
-  const [speechRate, setSpeechRate] = useState(0.82)
+  const [speechRate, setSpeechRate] = useState(0.72)
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [voiceURI, setVoiceURI] = useState('')
   const [savedStories, setSavedStories] = useState<SavedStory[]>([])
@@ -172,6 +173,7 @@ export default function App() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const musicUrlRef = useRef<string | null>(null)
   const shouldResumeMusicRef = useRef(false)
+  const startedMusicForSpeechRef = useRef(false)
 
   const pageCount = story?.pages.length ?? 0
   const spreadCount = Math.ceil(pageCount / 2)
@@ -181,7 +183,7 @@ export default function App() {
   const closeGenerator = () => dialogRef.current?.close()
 
   const applyNewStory = () => {
-    const next = generateDemoStory(name, theme)
+    const next = generateDemoStory(name, theme, storySummary)
     setStory(next)
     setReadIndex(0)
     setPhase('cover')
@@ -288,6 +290,10 @@ export default function App() {
   const stopSpeaking = () => {
     if (!speechSupported) return
     window.speechSynthesis.cancel()
+    if (startedMusicForSpeechRef.current) {
+      startedMusicForSpeechRef.current = false
+      stopMusic()
+    }
     if (shouldResumeMusicRef.current) {
       shouldResumeMusicRef.current = false
       void startMusic()
@@ -299,21 +305,21 @@ export default function App() {
     phase === 'cover' && story
       ? `${story.cover.title}. ${story.cover.subtitle}.`
       : phase === 'reading' && story
-        ? story.pages.map((p, i) => `Page ${i + 1}. ${p.text}`).join(' ')
+        ? story.pages.map((p) => p.text).join(' ')
         : ''
 
   const speakText = (content: string, onEnd?: () => void) => {
     if (!speechSupported || !content.trim()) return
     stopSpeaking()
     const selectedVoice = voiceURI ? voices.find((v) => v.voiceURI === voiceURI) : undefined
-    const effectiveRate = Math.min(0.88, Math.max(0.72, speechRate))
+    const effectiveRate = Math.min(0.84, Math.max(0.62, speechRate))
+    startedMusicForSpeechRef.current = false
     if (audioRef.current && !audioRef.current.paused) {
       shouldResumeMusicRef.current = true
       audioRef.current.pause()
     } else {
       shouldResumeMusicRef.current = false
     }
-
     const chunkBySentence = (value: string, maxLen = 170): string[] => {
       const rough = value
         .replace(/\s+/g, ' ')
@@ -346,8 +352,8 @@ export default function App() {
     const queue = chunks.map((chunk) => {
       const utterance = new SpeechSynthesisUtterance(chunk)
       utterance.rate = effectiveRate
-      utterance.pitch = 1
-      utterance.volume = 1
+      utterance.pitch = 0.86
+      utterance.volume = 0.92
       utterance.lang = selectedVoice?.lang ?? 'en-US'
       if (selectedVoice) utterance.voice = selectedVoice
       return utterance
@@ -357,6 +363,10 @@ export default function App() {
     queue[0].onstart = () => setIsSpeaking(true)
     queue[queue.length - 1].onend = () => {
       setIsSpeaking(false)
+      if (startedMusicForSpeechRef.current) {
+        startedMusicForSpeechRef.current = false
+        stopMusic()
+      }
       if (shouldResumeMusicRef.current) {
         shouldResumeMusicRef.current = false
         void startMusic()
@@ -366,6 +376,10 @@ export default function App() {
     for (const item of queue) {
       item.onerror = () => {
         setIsSpeaking(false)
+        if (startedMusicForSpeechRef.current) {
+          startedMusicForSpeechRef.current = false
+          stopMusic()
+        }
         if (shouldResumeMusicRef.current) {
           shouldResumeMusicRef.current = false
           void startMusic()
@@ -384,7 +398,7 @@ export default function App() {
     const readFrom = (pageIndex: number) => {
       const page = story.pages[pageIndex]
       if (!page) return
-      speakText(`Page ${pageIndex + 1}. ${page.text}`, () => {
+      speakText(page.text, () => {
         if (!autoReadNextPage) return
         const next = pageIndex + 1
         if (next >= story.pages.length) return
@@ -412,10 +426,15 @@ export default function App() {
   }
 
   const toggleMusic = async () => {
-    if (musicOn) {
+    shouldResumeMusicRef.current = false
+    startedMusicForSpeechRef.current = false
+    if (audioRef.current && !audioRef.current.paused) {
       stopMusic()
       setMusicOn(false)
       return
+    }
+    if (audioRef.current) {
+      audioRef.current.volume = NORMAL_MUSIC_VOLUME
     }
     const ok = await startMusic()
     setMusicOn(ok)
@@ -612,8 +631,8 @@ export default function App() {
                   <input
                     className="mediaRange"
                     type="range"
-                    min="0.72"
-                    max="1.0"
+                    min="0.62"
+                    max="0.84"
                     step="0.01"
                     value={speechRate}
                     onChange={(e) => setSpeechRate(Number(e.target.value))}
@@ -684,6 +703,17 @@ export default function App() {
               maxLength={32}
               placeholder="e.g. Finn"
               autoComplete="off"
+            />
+          </label>
+          <label className="field">
+            <span className="field__label">What should this story be about?</span>
+            <textarea
+              className="field__input"
+              value={storySummary}
+              onChange={(e) => setStorySummary(e.target.value)}
+              maxLength={220}
+              rows={3}
+              placeholder="e.g. helping a shy dragon make friends at a moonlight picnic"
             />
           </label>
           <fieldset className="field field--themes">
