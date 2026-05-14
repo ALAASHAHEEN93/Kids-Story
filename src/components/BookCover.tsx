@@ -31,11 +31,12 @@ export function BookCover({ cover, onOpen }: Props) {
   }
 
   return (
-    <div className="bookCover">
+    <div className="bookCover bookCover--kidsBook">
       <div className="bookCover__stage">
         <div
           className={[
             'bookCover__board',
+            'bookCover__board--kids',
             opening && 'bookCover__board--opening',
           ]
             .filter(Boolean)
@@ -50,7 +51,7 @@ export function BookCover({ cover, onOpen }: Props) {
               <span>✦</span>
               <span>✦</span>
             </div>
-            <p className="bookCover__series">Kids&apos; Bedtime Stories</p>
+            <p className="bookCover__series">Kids&apos; Book</p>
             <div className="bookCover__heroTitle">
               <span className="bookCover__moon" aria-hidden>
                 🌙

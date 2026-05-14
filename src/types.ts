@@ -20,4 +20,9 @@ export type StoryPage = {
 export type Story = {
   cover: StoryCover
   pages: StoryPage[]
+  /**
+   * Optional parent-uploaded portrait, processed into a cartoon-style data URL
+   * and used on the opening page (never the raw camera photo).
+   */
+  heroPortraitCartoonUrl?: string
 }

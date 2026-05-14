@@ -116,7 +116,12 @@ function buildCover(trimmed: string, theme: StoryTheme, summary: string): StoryC
   }
 }
 
-function storyTexts(name: string, theme: StoryTheme, summary: string): string[] {
+function storyTexts(
+  name: string,
+  theme: StoryTheme,
+  summary: string,
+  hasCustomPortrait: boolean,
+): string[] {
   const t = themes[theme]
   const idea = summary || `a kind day in ${t.place}`
   const promptPool = [
@@ -127,8 +132,12 @@ function storyTexts(name: string, theme: StoryTheme, summary: string): string[] 
     'Can you take a slow sleepy breath?',
     'Can you find the moon shape?',
   ]
+  const portraitLead = hasCustomPortrait
+    ? `On the very first page, a cozy cartoon portrait of ${name} smiled out from the paper—like a sticker from a dream, not a camera flash. `
+    : ''
+
   const beats = [
-    `${name} stepped into ${t.place} with a big smile. Today was about ${idea}.`,
+    `${portraitLead}${name} stepped into ${t.place} with a big smile. Today was about ${idea}.`,
     `${name} found a ${t.symbol} and held it close. It felt warm and brave.`,
     `${name} met a new friend and said hello. They giggled and walked together.`,
     `A tiny puzzle appeared on the path. ${name} solved it with calm thinking.`,
@@ -138,10 +147,18 @@ function storyTexts(name: string, theme: StoryTheme, summary: string): string[] 
     `${name} looked up and saw gentle stars. The night felt safe and soft.`,
   ]
 
+  const softLines = [
+    'The moment slowed, as if the whole world were listening.',
+    'Even the air felt gentle, like a blanket tucked just right.',
+    'They took one slow breath and let the colors feel friendly.',
+    'Everything around them hummed a tiny, sleepy sparkle.',
+  ]
+
   const out = Array.from({ length: STORY_PAGE_COUNT }, (_, i) => {
     const beat = beats[i % beats.length]
     const prompt = promptPool[i % promptPool.length]
-    return `${beat} ${prompt}`
+    const soft = softLines[i % softLines.length]
+    return `${beat} ${soft} ${prompt}`
   })
 
   out[out.length - 1] = `${name} came home cozy and proud. ${t.revisit} waited for the next adventure. The End.`
@@ -152,16 +169,27 @@ function storyTexts(name: string, theme: StoryTheme, summary: string): string[] 
   return out
 }
 
-function pagesFor(name: string, theme: StoryTheme, summary: string): StoryPage[] {
+function pagesFor(
+  name: string,
+  theme: StoryTheme,
+  summary: string,
+  heroPortraitCartoonUrl?: string,
+): StoryPage[] {
   const alts = beatAlts[theme]
-  const texts = storyTexts(name, theme, summary)
+  const hasPortrait = Boolean(heroPortraitCartoonUrl)
+  const texts = storyTexts(name, theme, summary, hasPortrait)
   const nBeat = alts.length
 
   return texts.map((text, i) => {
     const beat = (i % nBeat) + 1
+    const usePortrait = Boolean(heroPortraitCartoonUrl) && i === 0
     return {
-      image: publicAsset(`illustrations/${theme}/beat-${beat}.svg`),
-      imageAlt: alts[i % nBeat],
+      image: usePortrait
+        ? heroPortraitCartoonUrl!
+        : publicAsset(`illustrations/${theme}/beat-${beat}.svg`),
+      imageAlt: usePortrait
+        ? `Storybook cartoon portrait of ${name}—a gentle illustrated version, not a photograph`
+        : alts[i % nBeat],
       text,
     }
   })
@@ -171,12 +199,15 @@ export function generateDemoStory(
   characterName: string,
   theme: StoryTheme,
   summary = '',
+  options?: { heroPortraitCartoonUrl?: string },
 ): Story {
   const trimmed = characterName.trim() || 'the traveler'
   const summaryTrimmed = summary.trim().replace(/\s+/g, ' ').slice(0, 120)
+  const heroPortraitCartoonUrl = options?.heroPortraitCartoonUrl
   return {
     cover: buildCover(trimmed, theme, summaryTrimmed),
-    pages: pagesFor(trimmed, theme, summaryTrimmed),
+    pages: pagesFor(trimmed, theme, summaryTrimmed, heroPortraitCartoonUrl),
+    ...(heroPortraitCartoonUrl ? { heroPortraitCartoonUrl } : {}),
   }
 }
 

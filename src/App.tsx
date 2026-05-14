@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BookCover } from './components/BookCover'
 import { BookSpread } from './components/BookSpread'
 import { generateDemoStory } from './storyGenerator'
+import { fileToCartoonDataUrl } from './photoToCartoon'
 import type { Story, StoryTheme } from './types'
 import './App.css'
 
@@ -106,6 +107,102 @@ function SparklesIcon() {
   )
 }
 
+function ToolbarMusicIcon({ on }: { on: boolean }) {
+  return on ? (
+    <svg className="toolbarSvg" width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"
+      />
+    </svg>
+  ) : (
+    <svg className="toolbarSvg" width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6zm-2 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
+      />
+    </svg>
+  )
+}
+
+function ToolbarReadIcon() {
+  return (
+    <svg className="toolbarSvg" width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3s-3 1.34-3 3v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.46-5.73 5.92V21H9v-4.08C5.76 16.46 3.21 14 3.21 11H5c0 2.21 1.79 4 4 4s4-1.79 4-4h2.3z"
+      />
+    </svg>
+  )
+}
+
+function ToolbarStopIcon() {
+  return (
+    <svg className="toolbarSvg" width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+      <path fill="currentColor" d="M6 6h12v12H6z" />
+    </svg>
+  )
+}
+
+function ToolbarMoreIcon() {
+  return (
+    <svg className="toolbarSvg" width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+      />
+    </svg>
+  )
+}
+
+function StoryExperienceShell({
+  variant,
+  children,
+}: {
+  variant: 'cover' | 'reading'
+  children: React.ReactNode
+}) {
+  return (
+    <div className={['storyExperience', variant === 'reading' && 'storyExperience--reading'].filter(Boolean).join(' ')}>
+      <div className="storyExperience__main">{children}</div>
+    </div>
+  )
+}
+
+function LandingSideIcons() {
+  return (
+    <div className="landingHero__icons" aria-hidden>
+      <span className="landingHero__iconChip">
+        <svg width="28" height="28" viewBox="0 0 24 24">
+          <path
+            fill="currentColor"
+            d="M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"
+          />
+        </svg>
+      </span>
+      <span className="landingHero__iconChip">
+        <svg width="28" height="28" viewBox="0 0 24 24">
+          <path
+            fill="currentColor"
+            d="M12 3l1.55 5.97L19 9.24l-4.5 3.47 1.73 6.29L12 15.9 7.77 18.99l1.73-6.28L5 9.24l5.45-.27L12 3z"
+          />
+        </svg>
+      </span>
+      <span className="landingHero__iconChip">
+        <svg width="28" height="28" viewBox="0 0 24 24">
+          <path
+            fill="currentColor"
+            d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"
+          />
+        </svg>
+      </span>
+      <span className="landingHero__iconChip landingHero__iconChip--emoji" aria-hidden>
+        🌙
+      </span>
+    </div>
+  )
+}
+
 function LandingHero({ onGenerate }: { onGenerate: () => void }) {
   return (
     <div className="landingHero">
@@ -117,7 +214,10 @@ function LandingHero({ onGenerate }: { onGenerate: () => void }) {
             <span className="landingHero__headlineTail">for children</span>
           </h1>
           <p className="landingHero__subtitle">
-            A cozy storybook for kids—create a tale, choose a world, and read it together.
+            Little Bear is a gentle bedtime storybook you can shape together: pick a hero, choose a dreamy world, and
+            read aloud with soft pages on the screen. Parents can even tuck in a photo at the start—we turn it into a
+            cozy cartoon look so the story feels personal, not like a camera roll. When you are ready, tap below, name
+            your star, and open the cover for a calm, read-together moment at the end of the day.
           </p>
           <button type="button" className="landingHero__cta" onClick={onGenerate}>
             <SparklesIcon />
@@ -126,7 +226,7 @@ function LandingHero({ onGenerate }: { onGenerate: () => void }) {
         </div>
         <div className="landingHero__artCol">
           <img
-            className="landingHero__art"
+            className="landingHero__art landingHero__art--compact"
             src={LANDING_HERO_SRC}
             width={1024}
             height={979}
@@ -134,6 +234,7 @@ function LandingHero({ onGenerate }: { onGenerate: () => void }) {
             decoding="async"
           />
         </div>
+        <LandingSideIcons />
       </div>
     </div>
   )
@@ -158,6 +259,9 @@ export default function App() {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [name, setName] = useState('Finn')
   const [storySummary, setStorySummary] = useState('')
+  const [kidPhotoCartoonUrl, setKidPhotoCartoonUrl] = useState<string | null>(null)
+  const [kidPhotoConverting, setKidPhotoConverting] = useState(false)
+  const [storyCreateBusy, setStoryCreateBusy] = useState(false)
   const [theme, setTheme] = useState<StoryTheme>('magic')
   const [musicOn, setMusicOn] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
@@ -176,19 +280,52 @@ export default function App() {
   const startedMusicForSpeechRef = useRef(false)
 
   const pageCount = story?.pages.length ?? 0
-  const spreadCount = Math.ceil(pageCount / 2)
   const speechSupported = typeof window !== 'undefined' && 'speechSynthesis' in window
 
   const openGenerator = () => dialogRef.current?.showModal()
-  const closeGenerator = () => dialogRef.current?.close()
+  const closeGenerator = () => {
+    dialogRef.current?.close()
+  }
 
-  const applyNewStory = () => {
-    const next = generateDemoStory(name, theme, storySummary)
-    setStory(next)
-    setReadIndex(0)
-    setPhase('cover')
-    setActiveStoryId(null)
-    closeGenerator()
+  const clearKidPhoto = () => {
+    setKidPhotoCartoonUrl(null)
+    setKidPhotoConverting(false)
+  }
+
+  const onKidPhotoChange = (fileList: FileList | null) => {
+    const file = fileList?.[0] ?? null
+    if (!file || !file.type.startsWith('image/')) {
+      clearKidPhoto()
+      return
+    }
+    void (async () => {
+      setKidPhotoConverting(true)
+      setKidPhotoCartoonUrl(null)
+      try {
+        const cartoon = await fileToCartoonDataUrl(file, 400)
+        setKidPhotoCartoonUrl(cartoon)
+      } finally {
+        setKidPhotoConverting(false)
+      }
+    })()
+  }
+
+  const applyNewStory = async () => {
+    setStoryCreateBusy(true)
+    try {
+      const heroPortraitCartoonUrl = kidPhotoCartoonUrl ?? undefined
+      const next = generateDemoStory(name, theme, storySummary, {
+        ...(heroPortraitCartoonUrl ? { heroPortraitCartoonUrl } : {}),
+      })
+      setStory(next)
+      setReadIndex(0)
+      setPhase('cover')
+      setActiveStoryId(null)
+      clearKidPhoto()
+      closeGenerator()
+    } finally {
+      setStoryCreateBusy(false)
+    }
   }
 
   const openBook = () => {
@@ -425,38 +562,50 @@ export default function App() {
     }
   }
 
-  const toggleMusic = async () => {
+  const toggleMusic = () => {
     shouldResumeMusicRef.current = false
     startedMusicForSpeechRef.current = false
-    if (audioRef.current && !audioRef.current.paused) {
+    const el = audioRef.current
+    if (!el) return
+
+    if (!el.paused) {
       stopMusic()
       setMusicOn(false)
       return
     }
-    if (audioRef.current) {
-      audioRef.current.volume = NORMAL_MUSIC_VOLUME
+
+    el.volume = NORMAL_MUSIC_VOLUME
+    void el.load()
+    const playAttempt = el.play()
+    if (playAttempt === undefined) {
+      setMusicOn(true)
+      return
     }
-    const ok = await startMusic()
-    setMusicOn(ok)
+    playAttempt
+      .then(() => setMusicOn(true))
+      .catch(() => setMusicOn(false))
   }
 
   useEffect(() => {
-    if (!audioRef.current) {
-      musicUrlRef.current = createLullabyObjectUrl()
-      const el = new Audio(musicUrlRef.current)
-      el.loop = true
-      el.volume = NORMAL_MUSIC_VOLUME
-      el.preload = 'auto'
-      audioRef.current = el
-    }
+    const url = createLullabyObjectUrl()
+    musicUrlRef.current = url
+    const el = new Audio()
+    el.src = url
+    el.loop = true
+    el.volume = NORMAL_MUSIC_VOLUME
+    el.preload = 'auto'
+    audioRef.current = el
+    void el.load()
 
     return () => {
       stopMusic()
       stopSpeaking()
-      if (musicUrlRef.current) {
-        URL.revokeObjectURL(musicUrlRef.current)
-        musicUrlRef.current = null
-      }
+      el.pause()
+      el.removeAttribute('src')
+      void el.load()
+      audioRef.current = null
+      URL.revokeObjectURL(url)
+      musicUrlRef.current = null
     }
   }, [])
 
@@ -531,157 +680,211 @@ export default function App() {
     phase === 'landing'
       ? 'app app--landing'
       : phase === 'cover'
-        ? 'app app--coverSoft'
-        : 'app'
+        ? 'app app--coverSoft app--kidsBook'
+        : 'app app--kidsBook'
 
   return (
     <div className={appClass}>
-      {phase !== 'landing' ? (
-        <div className="storyToolbar">
-          <div className="toolbarRow toolbarRow--primary">
-            <button type="button" className="generateBtn" onClick={openGenerator}>
-              <SparklesIcon />
-              New story
-            </button>
-            <button type="button" className="mediaBtn" onClick={toggleMusic}>
-              {musicOn ? 'Music Off' : 'Music On'}
-            </button>
-            {speechSupported && textToRead ? (
+      {phase === 'landing' ? (
+        <main className="appMain">
+          <LandingHero onGenerate={openGenerator} />
+        </main>
+      ) : (
+        <div className="appBody appBody--withRail">
+          <main
+            className={['appMain', phase === 'reading' && 'appMain--reading', phase === 'cover' && 'appMain--cover']
+              .filter(Boolean)
+              .join(' ')}
+          >
+            {phase === 'cover' && story ? (
+              <StoryExperienceShell variant="cover">
+                <BookCover key={story.cover.title} cover={story.cover} onOpen={openBook} />
+              </StoryExperienceShell>
+            ) : null}
+            {phase === 'reading' && story ? (
+              <StoryExperienceShell variant="reading">
+                <div className="readingWrap readingWrap--single">
+                  <BookSpread
+                    pages={story.pages}
+                    readIndex={readIndex}
+                    pageCount={pageCount}
+                    onReadIndexChange={setReadIndex}
+                  />
+                </div>
+              </StoryExperienceShell>
+            ) : null}
+          </main>
+          <aside
+            className={['storyToolbar', 'storyToolbar--rail', showMoreControls && 'storyToolbar--drawerOpen']
+              .filter(Boolean)
+              .join(' ')}
+            aria-label="Story tools"
+          >
+            <div className="storyToolbar__icons">
               <button
                 type="button"
-                className="mediaBtn mediaBtn--read"
-                onClick={() =>
-                  isSpeaking ? stopSpeaking() : phase === 'reading' ? speakCurrentPage() : speakCurrentText()
-                }
+                className="toolbarIconBtn toolbarIconBtn--primary"
+                onClick={openGenerator}
+                aria-label="New story"
+                title="New story"
               >
-                {isSpeaking ? 'Stop' : phase === 'reading' ? 'Read' : 'Read'}
+                <SparklesIcon />
               </button>
-            ) : null}
-            {savedStories.length > 0 ? (
-              <label className="mediaSelectWrap">
-                <span>Stories</span>
-                <select
-                  className="mediaSelect"
-                  value={selectedSavedId}
-                  onChange={(e) => setSelectedSavedId(e.target.value)}
-                >
-                  <option value="">Select...</option>
-                  {savedStories.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.label ?? s.story.cover.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            {selectedSavedId ? (
-              <button type="button" className="mediaBtn" onClick={() => loadSavedStory(selectedSavedId)}>
-                Open
+              <button
+                type="button"
+                className={['toolbarIconBtn', musicOn && 'toolbarIconBtn--active'].filter(Boolean).join(' ')}
+                onClick={toggleMusic}
+                aria-label={musicOn ? 'Turn music off' : 'Turn music on'}
+                title={musicOn ? 'Music on' : 'Music off'}
+              >
+                <ToolbarMusicIcon on={musicOn} />
               </button>
-            ) : null}
-            <button type="button" className="mediaBtn" onClick={() => setShowMoreControls((v) => !v)}>
-              {showMoreControls ? 'Less' : 'More'}
-            </button>
-          </div>
-          {showMoreControls ? (
-            <div className="toolbarRow toolbarRow--secondary">
-              {story ? (
-                <>
-                  <button type="button" className="mediaBtn" onClick={saveCurrentStory}>
-                    Save
-                  </button>
-                  <button type="button" className="mediaBtn" onClick={exportStoryToPrint}>
-                    Export
-                  </button>
-                </>
-              ) : null}
-              {selectedSavedId ? (
-                <>
-                  <button type="button" className="mediaBtn" onClick={() => renameSavedStory(selectedSavedId)}>
-                    Rename
-                  </button>
-                  <button
-                    type="button"
-                    className="mediaBtn mediaBtn--danger"
-                    onClick={() => deleteSavedStory(selectedSavedId)}
-                  >
-                    Delete
-                  </button>
-                </>
-              ) : null}
-              {speechSupported ? (
-                <label className="mediaSelectWrap">
-                  <span>Voice</span>
-                  <select
-                    className="mediaSelect"
-                    value={voiceURI}
-                    onChange={(e) => setVoiceURI(e.target.value)}
-                  >
-                    {voices.map((v) => (
-                      <option key={v.voiceURI} value={v.voiceURI}>
-                        {v.name} ({v.lang})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              {speechSupported ? (
-                <label className="mediaSelectWrap mediaSelectWrap--rate">
-                  <span>Speed {speechRate.toFixed(2)}x</span>
-                  <input
-                    className="mediaRange"
-                    type="range"
-                    min="0.62"
-                    max="0.84"
-                    step="0.01"
-                    value={speechRate}
-                    onChange={(e) => setSpeechRate(Number(e.target.value))}
-                  />
-                </label>
-              ) : null}
-              {phase === 'reading' ? (
-                <label className="mediaCheck">
-                  <input
-                    type="checkbox"
-                    checked={autoReadNextPage}
-                    onChange={(e) => setAutoReadNextPage(e.target.checked)}
-                  />
-                  <span>Auto next</span>
-                </label>
-              ) : null}
-              {speechSupported && phase === 'reading' && textToRead ? (
+              {speechSupported && textToRead ? (
                 <button
                   type="button"
-                  className="mediaBtn mediaBtn--read"
-                  onClick={() => (isSpeaking ? stopSpeaking() : speakCurrentText())}
+                  className={['toolbarIconBtn', isSpeaking ? 'toolbarIconBtn--active' : ''].filter(Boolean).join(' ')}
+                  onClick={() =>
+                    isSpeaking ? stopSpeaking() : phase === 'reading' ? speakCurrentPage() : speakCurrentText()
+                  }
+                  aria-label={isSpeaking ? 'Stop reading' : 'Read aloud'}
+                  title={isSpeaking ? 'Stop' : 'Read'}
                 >
-                  {isSpeaking ? 'Stop' : 'Read Full'}
+                  {isSpeaking ? <ToolbarStopIcon /> : <ToolbarReadIcon />}
                 </button>
               ) : null}
+              <button
+                type="button"
+                className={['toolbarIconBtn', showMoreControls ? 'toolbarIconBtn--active' : ''].filter(Boolean).join(
+                  ' ',
+                )}
+                onClick={() => setShowMoreControls((v) => !v)}
+                aria-expanded={showMoreControls}
+                aria-controls="story-toolbar-more"
+                aria-label={showMoreControls ? 'Close more options' : 'More options'}
+                title="More"
+              >
+                <ToolbarMoreIcon />
+              </button>
             </div>
-          ) : null}
+            {showMoreControls ? (
+              <div
+                id="story-toolbar-more"
+                className="storyToolbar__drawer"
+                role="region"
+                aria-label="More story options"
+              >
+                <div className="storyToolbar__drawerInner">
+                  {savedStories.length > 0 ? (
+                    <div className="storyToolbar__drawerBlock">
+                      <label className="mediaSelectWrap mediaSelectWrap--stack">
+                        <span>Saved stories</span>
+                        <select
+                          className="mediaSelect mediaSelect--full"
+                          value={selectedSavedId}
+                          onChange={(e) => setSelectedSavedId(e.target.value)}
+                        >
+                          <option value="">Select…</option>
+                          {savedStories.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.label ?? s.story.cover.title}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {selectedSavedId ? (
+                        <button
+                          type="button"
+                          className="mediaBtn mediaBtn--block"
+                          onClick={() => loadSavedStory(selectedSavedId)}
+                        >
+                          Open story
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {story ? (
+                    <div className="storyToolbar__drawerBlock">
+                      <button type="button" className="mediaBtn mediaBtn--block" onClick={saveCurrentStory}>
+                        Save
+                      </button>
+                      <button type="button" className="mediaBtn mediaBtn--block" onClick={exportStoryToPrint}>
+                        Export
+                      </button>
+                    </div>
+                  ) : null}
+                  {selectedSavedId ? (
+                    <div className="storyToolbar__drawerBlock">
+                      <button
+                        type="button"
+                        className="mediaBtn mediaBtn--block"
+                        onClick={() => renameSavedStory(selectedSavedId)}
+                      >
+                        Rename
+                      </button>
+                      <button
+                        type="button"
+                        className="mediaBtn mediaBtn--block mediaBtn--danger"
+                        onClick={() => deleteSavedStory(selectedSavedId)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ) : null}
+                  {speechSupported ? (
+                    <div className="storyToolbar__drawerBlock">
+                      <label className="mediaSelectWrap mediaSelectWrap--stack">
+                        <span>Voice</span>
+                        <select
+                          className="mediaSelect mediaSelect--full"
+                          value={voiceURI}
+                          onChange={(e) => setVoiceURI(e.target.value)}
+                        >
+                          {voices.map((v) => (
+                            <option key={v.voiceURI} value={v.voiceURI}>
+                              {v.name} ({v.lang})
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="mediaSelectWrap mediaSelectWrap--stack mediaSelectWrap--rate">
+                        <span>Speed {speechRate.toFixed(2)}×</span>
+                        <input
+                          className="mediaRange mediaRange--full"
+                          type="range"
+                          min="0.62"
+                          max="0.84"
+                          step="0.01"
+                          value={speechRate}
+                          onChange={(e) => setSpeechRate(Number(e.target.value))}
+                        />
+                      </label>
+                    </div>
+                  ) : null}
+                  {phase === 'reading' ? (
+                    <label className="mediaCheck mediaCheck--block">
+                      <input
+                        type="checkbox"
+                        checked={autoReadNextPage}
+                        onChange={(e) => setAutoReadNextPage(e.target.checked)}
+                      />
+                      <span>Auto next page</span>
+                    </label>
+                  ) : null}
+                  {speechSupported && phase === 'reading' && textToRead ? (
+                    <button
+                      type="button"
+                      className="mediaBtn mediaBtn--block mediaBtn--read"
+                      onClick={() => (isSpeaking ? stopSpeaking() : speakCurrentText())}
+                    >
+                      {isSpeaking ? 'Stop' : 'Read entire story'}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </aside>
         </div>
-      ) : null}
-
-      <main className="appMain">
-        {phase === 'landing' ? (
-          <LandingHero onGenerate={openGenerator} />
-        ) : null}
-        {phase === 'cover' && story ? (
-          <BookCover key={story.cover.title} cover={story.cover} onOpen={openBook} />
-        ) : null}
-        {phase === 'reading' && story ? (
-          <div className="readingWrap">
-            <BookSpread
-              pages={story.pages}
-              readIndex={readIndex}
-              pageCount={pageCount}
-              spreadCount={spreadCount}
-              onReadIndexChange={setReadIndex}
-            />
-          </div>
-        ) : null}
-      </main>
+      )}
 
       <dialog ref={dialogRef} className="storyDialog">
         <form
@@ -689,11 +892,37 @@ export default function App() {
           className="storyDialog__form"
           onSubmit={(e) => {
             e.preventDefault()
-            applyNewStory()
+            void applyNewStory()
           }}
         >
           <h2 className="storyDialog__title">Create your story</h2>
           <p className="storyDialog__lede">Name your hero and pick a theme—we&apos;ll open the book cover next.</p>
+          <div className="field field--photo">
+            <span className="field__label">Optional: your child&apos;s photo (storybook cartoon)</span>
+            <p className="field__hint">
+              Choose a picture and we&apos;ll show a cartoon version right away. Only that cartoon art is used on the
+              first story page—never the original photo.
+            </p>
+            <input
+              className="field__file"
+              type="file"
+              accept="image/*"
+              onChange={(e) => onKidPhotoChange(e.target.files)}
+            />
+            {kidPhotoConverting ? <p className="field__status">Turning the photo into a cartoon…</p> : null}
+            {kidPhotoCartoonUrl ? (
+              <div className="kidPhotoPreview">
+                <img
+                  src={kidPhotoCartoonUrl}
+                  alt="Cartoon preview of your photo for the story"
+                  className="kidPhotoPreview__img kidPhotoPreview__img--cartoon"
+                />
+                <button type="button" className="kidPhotoPreview__remove" onClick={clearKidPhoto}>
+                  Remove photo
+                </button>
+              </div>
+            ) : null}
+          </div>
           <label className="field">
             <span className="field__label">Hero name</span>
             <input
@@ -740,8 +969,8 @@ export default function App() {
             <button type="button" className="btnGhost" onClick={closeGenerator}>
               Cancel
             </button>
-            <button type="submit" className="btnPrimary">
-              See the cover
+            <button type="submit" className="btnPrimary" disabled={storyCreateBusy || kidPhotoConverting}>
+              {storyCreateBusy ? 'Preparing…' : kidPhotoConverting ? 'Cartoon…' : 'See the cover'}
             </button>
           </div>
         </form>
